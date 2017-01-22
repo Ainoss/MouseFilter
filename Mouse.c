@@ -9,9 +9,11 @@ PDEVICE_OBJECT  MouseFilterDevice;
 PFILE_OBJECT    MouseFileObject;
 
 
-NTSTATUS MouseInit(IN PDRIVER_OBJECT DriverObject);
+DRIVER_ADD_DEVICE AddDevice;
+//NTSTATUS MouseInit(IN PDRIVER_OBJECT DriverObject);
 VOID MouseUnload(IN PDRIVER_OBJECT DriverObject);
 NTSTATUS MouseDispatchRead(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
+NTSTATUS MouseDispatchPnp(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
 NTSTATUS MouseDispatchGeneral(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp);
 
 
@@ -21,11 +23,13 @@ NTSTATUS DriverEntry(
 {
 	DbgPrint("MafMouse: Entering DriverEntry()\n");
 
-	DriverObject->DriverExtension->AddDevice = NULL;
+	DriverObject->DriverExtension->AddDevice = AddDevice;
 	DriverObject->DriverUnload = MouseUnload;
 #if 1
 	DriverObject->MajorFunction[IRP_MJ_READ]
 		= MouseDispatchRead;
+	DriverObject->MajorFunction[IRP_MJ_PNP]
+		= MouseDispatchPnp;
 	DriverObject->MajorFunction[IRP_MJ_CREATE] =
 		DriverObject->MajorFunction[IRP_MJ_CLOSE] =
 		DriverObject->MajorFunction[IRP_MJ_FLUSH_BUFFERS] =
@@ -33,14 +37,15 @@ NTSTATUS DriverEntry(
 		DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL]
 		= MouseDispatchGeneral;
 
-	return MouseInit(DriverObject);
+	//return MouseInit(DriverObject);
 #endif
 	return STATUS_SUCCESS;
 }
 
-
-NTSTATUS MouseInit(
-	IN PDRIVER_OBJECT DriverObject)
+NTSTATUS AddDevice(
+	_In_ struct _DRIVER_OBJECT *DriverObject,
+	_In_ struct _DEVICE_OBJECT *PhysicalDeviceObject
+	)
 {
 	CCHAR           ntNameBuffer[64];
 	STRING          ntNameString;
@@ -68,6 +73,7 @@ NTSTATUS MouseInit(
 
 	MouseFilterDevice->Flags |= DO_BUFFERED_IO;
 
+#if 1
 	ntStatus = IoGetDeviceObjectPointer(
 		&ntUnicodeString,
 		STANDARD_RIGHTS_ALL,
@@ -80,10 +86,14 @@ NTSTATUS MouseInit(
 		RtlFreeUnicodeString(&ntUnicodeString);
 		return STATUS_SUCCESS;
 	}
+#endif
 
-	IoAttachDeviceToDeviceStack(
+	MouseDevice = IoAttachDeviceToDeviceStack(
 		MouseFilterDevice,
-		MouseDevice);
+		PhysicalDeviceObject);
+	if (MouseDevice == NULL){
+		DbgPrint("MafMouse: failed to attach device object\n");
+	}
 
 	RtlFreeUnicodeString(&ntUnicodeString);
 
@@ -101,7 +111,7 @@ NTSTATUS MouseReadCompletionRoutine(
 	PIO_STACK_LOCATION IrpSp = IoGetCurrentIrpStackLocation(Irp);
 	PMOUSE_INPUT_DATA MouseData;
 
-	DbgPrint("Handle ReadComplete\n");
+	//DbgPrint("Handle ReadComplete\n");
 
 	if (NT_SUCCESS(Irp->IoStatus.Status)) {
 		MouseData = Irp->AssociatedIrp.SystemBuffer;
@@ -123,6 +133,50 @@ NTSTATUS MouseReadCompletionRoutine(
 	}
 
 	return Irp->IoStatus.Status;
+}
+
+
+NTSTATUS MouseDispatchPnp(
+	IN PDEVICE_OBJECT   DeviceObject,
+	IN PIRP             Irp)
+{
+	PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
+
+	DbgPrint("DispatchPNP: Mj=%x Mn=%x\n", stack->MajorFunction, stack->MinorFunction);
+
+	switch (stack->MinorFunction){
+	case IRP_MN_STOP_DEVICE:
+		DbgPrint("Removing device");
+		IoDetachDevice(MouseDevice);
+		//ObDereferenceObject(MouseFileObject);
+		IoDeleteDevice(MouseFilterDevice);
+		break;
+	case IRP_MN_QUERY_REMOVE_DEVICE:
+		Irp->IoStatus.Status = STATUS_SUCCESS;
+		break;
+	}
+	
+	IoSkipCurrentIrpStackLocation(Irp);
+	NTSTATUS st = IoCallDriver(MouseDevice, Irp);
+	DbgPrint("CallDriverStatus 0x%x\n", st);
+	return st;
+
+	//PIO_STACK_LOCATION nextIrpStack = IoGetNextIrpStackLocation(Irp);
+	//Irp->IoStatus.Status = STATUS_SUCCESS;
+	//Irp->IoStatus.Information = 0;
+	/*
+	if (DeviceObject == MouseFilterDevice) {
+		*nextIrpStack = *stack;
+		NTSTATUS st = IoCallDriver(MouseDevice, Irp);
+		DbgPrint("CallDriverStatus 0x%x\n", st);
+		if (st != STATUS_PENDING)
+			;
+		return st;
+	}
+
+	DbgPrint("FAIL1");
+	return STATUS_SUCCESS;
+	*/
 }
 
 
@@ -172,10 +226,4 @@ VOID MouseUnload(
 	IN PDRIVER_OBJECT DriverObject)
 {
 	DbgPrint("MafMouse: unload driver\n");
-#if 1
-	IoDetachDevice(MouseDevice);
-	ObDereferenceObject(MouseFileObject);
-	IoDeleteDevice(MouseFilterDevice);
-#endif
-	DbgPrint("MafMouse: unload driver completed\n");
 }
