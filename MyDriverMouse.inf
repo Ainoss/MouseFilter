@@ -1,0 +1,114 @@
+; mafmouse.inf
+;
+; (c) Copyright 2004-2009 MAF-Soft
+;
+
+[Version]
+Signature="$Windows NT$"
+Provider=%MAF%
+ClassGUID={4D36E96F-E325-11CE-BFC1-08002BE10318}
+Class=Mouse
+CatalogFile=TestMouseCatalogFile.cat
+DriverVer=08/21/2009
+;Month/Day/Year
+
+[DestinationDirs]
+DefaultDestDir   = 12
+
+;
+; Driver information
+;
+
+[Manufacturer]
+%MAF% = Standard,NTamd64
+
+[Standard.NTamd64]
+%MouseDesc% = mafmouse, HID_DEVICE_SYSTEM_MOUSE
+;for PS2: %MouseDesc% = mafmouse, *PNP0FAKE
+
+;
+; General installation section
+;
+
+[mafmouse]
+; perform port related actions from msmouse.inf
+Include=msmouse.inf
+Needs=HID_Mouse_Inst.NT
+;for PS2: Needs=PS2_Inst
+
+; Copy the driver over
+CopyFiles=mafmouse.CopyFiles
+
+;
+; File sections
+;
+
+[mafmouse.CopyFiles]
+mydrivermouse.inf
+;
+; Service Installation
+;
+
+[mafmouse.Services]
+AddService = mafmouse,  , mafmouse_Service_Inst
+; Install the port driver and mouclass from msmouse.inf
+Include=msmouse.inf
+Needs=HID_Mouse_Inst.NT.Services
+;for PS2: Needs=PS2_Inst.Services
+
+[mafmouse_Service_Inst]
+DisplayName    = %mafmouse.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 0                  ; SERVICE_ERROR_IGNORE
+LoadOrderGroup = Pointer Port
+ServiceBinary  = %12%\mafmouse.sys
+
+[mafmouse.HW]
+; Add the device upper filter
+AddReg = mafmouse.HW.AddReg
+
+; run the directives need by the port driver
+Include=msmouse.inf
+Needs=HID_Mouse_Inst.NT.HW
+;for PS2: Needs=PS2_Inst.HW
+
+[mafmouse.HW.AddReg]
+HKR,,"UpperFilters",0x00010000,"mafmouse"
+
+
+;
+; Source file information
+;
+
+; use [SourceDisksNames.x86] for x86 only installs
+; use [SourceDisksNames.alpha] for alpha only installs
+
+[SourceDisksNames]
+1 = %DiskId1%,,,
+
+[SourceDisksFiles]
+mydrivermouse.inf = 1,,
+
+
+[Strings]
+
+;
+; Non-Localizable Strings
+;
+
+REG_SZ         = 0x00000000
+REG_MULTI_SZ   = 0x00010000
+REG_EXPAND_SZ  = 0x00020000
+REG_BINARY     = 0x00000001
+REG_DWORD      = 0x00010001
+SERVICEROOT    = "System\CurrentControlSet\Services"
+
+;
+; Localizable Strings
+;
+
+DiskId1 = "MAF-Soft Mouse Filter Installation Disk"
+MAF = "MAF-Soft"
+MouseDesc = "MAF-Soft filtered USB Mouse Device"
+mafmouse.SvcDesc="Mouse Filter"
