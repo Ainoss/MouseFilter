@@ -5,7 +5,7 @@ VisualStudioVersion = 12.0.30110.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MyDriverMouse", "MyDriverMouse.vcxproj", "{0C1A2A32-9A13-4719-A1F4-845354734783}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MyDriverMouse Package", "..\MyDriverMouse Package\MyDriverMouse Package.vcxproj", "{3E7AD9E3-94B9-4E76-81DA-ACACD16885FF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MyDriverMouse Package", ".\Package\MyDriverMouse Package.vcxproj", "{3E7AD9E3-94B9-4E76-81DA-ACACD16885FF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{0C1A2A32-9A13-4719-A1F4-845354734783} = {0C1A2A32-9A13-4719-A1F4-845354734783}
 	EndProjectSection
